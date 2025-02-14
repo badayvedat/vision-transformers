@@ -7,9 +7,8 @@ from datasets import Dataset
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 
-# learning rate with cosine lr decay
 from torch.optim.lr_scheduler import LambdaLR
-from tqdm import tqdm  # Import tqdm for progress bars
+from tqdm import tqdm
 
 # Hyperparameters
 base_lr = 3e-3
