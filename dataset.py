@@ -1,5 +1,4 @@
 from torch.utils.data import DataLoader
-import torch
 import torchvision.transforms as transforms
 from datasets import load_dataset, Image
 
@@ -37,22 +36,6 @@ def test_transforms(example: dict):
 
 train_ds.set_transform(train_transforms)
 test_ds.set_transform(test_transforms)
-
-
-def patchify(tensor: torch.Tensor, patch_size: int):
-    N, C, H, W = tensor.shape
-
-    num_patches_h = H // patch_size
-    num_patches_w = W // patch_size
-    num_patches = num_patches_h * num_patches_w
-    patch_dim = C * patch_size * patch_size
-
-    patches = tensor.reshape(N, C, num_patches_h, patch_size, num_patches_w, patch_size)
-    # [B, C, H', p, W', p] -> [B, H', W', C, p, p]
-    patches = patches.permute(0, 2, 4, 1, 3, 5).contiguous()
-    # [B, H', W', C, p, p] -> [B, H' * W', C * p * p]
-    patches = patches.view(N, num_patches, patch_dim)
-    return patches
 
 
 if __name__ == "__main__":

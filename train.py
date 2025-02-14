@@ -1,5 +1,5 @@
 from config import ViTBaseConfig
-from dataset import patchify, train_ds, test_ds
+from dataset import train_ds, test_ds
 from model import ViT
 import torch
 import torch.nn.functional as F
@@ -34,7 +34,7 @@ def lr_lambda(current_step):
 
 
 # Apply scheduler
-def train(model: ViT, patch_size: int, train_loader: Dataset, test_loader: Dataset):
+def train(model: ViT, train_loader: Dataset, test_loader: Dataset):
     step = 0
 
     # Table 3 in the paper
@@ -47,14 +47,14 @@ def train(model: ViT, patch_size: int, train_loader: Dataset, test_loader: Datas
         train_loader
     )  # Total number of steps for all epochs
 
-    # Wrap the whole training loop with tqdm for step-based progress
-    progress_bar = tqdm(total=total_steps_count, desc="Training", unit="step")
+    progress_bar = tqdm(total=total_steps_count, desc="Training steps", unit="step")
 
-    for epoch in range(num_epochs):
+    for _ in range(num_epochs):
         for batch in train_loader:
-            images, labels = batch["image"].cuda(), batch["label"].cuda()
-            patches = patchify(images, patch_size)
-            outputs = model(patches)
+            images = batch["image"].to(model.device, dtype=model.dtype)
+            labels = batch["label"].to(model.device, dtype=torch.long)
+
+            outputs = model(images)
 
             loss = F.cross_entropy(outputs, labels)
             loss.backward()
@@ -65,13 +65,13 @@ def train(model: ViT, patch_size: int, train_loader: Dataset, test_loader: Datas
             scheduler.step()
 
             step += 1
-            progress_bar.set_postfix(loss=loss.item())  # Update progress bar with loss
-            progress_bar.update(1)  # Update progress bar after each step
+            progress_bar.set_postfix(step_loss=loss.item(), lr=scheduler.get_last_lr())
+            progress_bar.update(1)
 
             if step % 100 == 0:
                 print(f"Step {step}, Loss {loss.item()}")
 
-    progress_bar.close()  # Close the progress bar at the end of training
+    progress_bar.close()
 
 
 if __name__ == "__main__":
@@ -81,8 +81,11 @@ if __name__ == "__main__":
     num_classes = 10
     dropout = 0.1
 
-    model = ViT(config, patch_size, num_classes, dropout).cuda()
+    torch.set_float32_matmul_precision("high")
+    model = ViT(config, patch_size, num_classes, dropout).to(
+        "cuda", dtype=torch.bfloat16
+    )
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
 
-    train(model, patch_size, train_loader, test_loader)
+    train(model, train_loader, test_loader)
